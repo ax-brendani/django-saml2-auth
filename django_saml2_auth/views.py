@@ -20,7 +20,7 @@ from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from django.template import TemplateDoesNotExist
 from django.http import HttpResponseRedirect
-from django.utils.http import is_safe_url
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from rest_auth.utils import jwt_encode
 
@@ -58,11 +58,7 @@ def get_current_domain(r):
 
 
 def get_reverse(objs):
-    '''In order to support different django version, I have to do this '''
-    if parse_version(get_version()) >= parse_version('2.0'):
-        from django.urls import reverse
-    else:
-        from django.core.urlresolvers import reverse
+    from django.urls import reverse
     if objs.__class__.__name__ not in ['list', 'tuple']:
         objs = [objs]
 
@@ -142,10 +138,7 @@ def _create_new_user(username, email, firstname, lastname):
     user.first_name = firstname
     user.last_name = lastname
     groups = [Group.objects.get(name=x) for x in settings.SAML2_AUTH.get('NEW_USER_PROFILE', {}).get('USER_GROUPS', [])]
-    if parse_version(get_version()) >= parse_version('2.0'):
-        user.groups.set(groups)
-    else:
-        user.groups = groups
+    user.groups.set(groups)
     user.is_active = settings.SAML2_AUTH.get('NEW_USER_PROFILE', {}).get('ACTIVE_STATUS', True)
     user.is_staff = settings.SAML2_AUTH.get('NEW_USER_PROFILE', {}).get('STAFF_STATUS', True)
     user.is_superuser = settings.SAML2_AUTH.get('NEW_USER_PROFILE', {}).get('SUPERUSER_STATUS', False)
@@ -236,10 +229,7 @@ def signin(r):
         next_url = r.GET.get('next', _default_next_url())
 
     # Only permit signin requests where the next_url is a safe URL
-    if parse_version(get_version()) >= parse_version('2.0'):
-        url_ok = is_safe_url(next_url, None)
-    else:
-        url_ok = is_safe_url(next_url)
+    url_ok = url_has_allowed_host_and_scheme(next_url, None)
 
     if not url_ok:
         return HttpResponseRedirect(get_reverse([denied, 'denied', 'django_saml2_auth:denied']))
